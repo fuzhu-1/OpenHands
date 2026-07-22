@@ -38,7 +38,6 @@ jobs:
     if: |
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.draft == false &&
-      contains(github.event.pull_request.labels.*.name, 'review-this') &&
       github.actor != 'github-actions[bot]' &&
       github.actor != 'openhands-bot'
     concurrency:
