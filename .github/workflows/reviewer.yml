@@ -71,7 +71,7 @@ jobs:
           REVIEWER_LLM_BASE_URL: ${{ secrets.REVIEWER_LLM_BASE_URL }}
         run: |
           python -m scripts.reviewer.main \
-            --llm-model "gpt-4o" \
+            --llm-model "deepseek-v4-flash"
             --set-status
 
       - name: Log completion
