@@ -260,3 +260,9 @@ runtime_*.tar
 test-results
 .sessions
 .eval_sessions
+
+# Local agent/tool state
+.codegraph/
+.serena/
+ai-job-search/
+.claude/settings.local.json
