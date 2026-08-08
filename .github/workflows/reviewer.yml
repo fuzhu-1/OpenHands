@@ -1,25 +1,6 @@
----
-# Reviewer Agent — Automated PR code review triggered by the `review-this` label.
-#
-# When the `review-this` label is added to a same-repo PR, the Reviewer Agent
-# analyzes the changes across four dimensions:
-#   - PR template compliance
-#   - Security (secrets, injection, XSS, etc.)
-#   - Code quality & style (function length, nesting, dead code, etc.)
-#   - Performance (N+1 queries, pagination, bundle impact, etc.)
-#
-# Results are posted as a PR comment with structured severity levels.
-#
-# Cost optimization:
-#   - Only triggers on explicit `review-this` label (not on every push)
-#   - Template compliance check is pattern-based (no LLM cost)
-#   - Large diffs (>15K chars) are sampled, not fully reviewed
 name: Reviewer Agent
 
 on:
-  pull_request:
-    types: [labeled, unlabeled, synchronize]
-  # Also re-review when a new commit is pushed after the label is already set
   pull_request_target:
     types: [labeled, synchronize]
 
@@ -30,14 +11,15 @@ permissions:
 
 jobs:
   reviewer:
-    # Run only when:
-    #   1. The PR is from the same repo (not a fork — no secrets available)
-    #   2. The PR is not a draft
-    #   3. The `review-this` label is present
-    #   4. Not triggered by the bot itself to avoid loops
+    # 门禁：
+    #   1. PR 当前带 review-this 标签（labeled / synchronize 事件的 labels 数组都可判断）
+    #   2. 非 draft
+    #   3. 非机器人自触发
+    # 安全说明：pull_request_target 默认检出 base 分支，脚本不来自 PR；
+    # 标签只能由有权限的人添加，天然形成人工门禁；fork PR 因此可以安全支持。
     if: |
-      github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.draft == false &&
+      contains(github.event.pull_request.labels.*.name, 'review-this') &&
       github.actor != 'github-actions[bot]' &&
       github.actor != 'openhands-bot'
     concurrency:
@@ -46,22 +28,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Checkout code
+      - name: Checkout base branch code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for diff calculation
-
+        # pull_request_target 上下文默认检出 base；不要指定 ref，避免检出 PR 代码
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install openai requests
-
+          pip install openai==2.33.0 requests==2.33.1 pyyaml==6.0.3
       - name: Run Reviewer Agent
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,11 +47,8 @@ jobs:
           GITHUB_EVENT_PATH: ${{ github.event_path }}
           REVIEWER_LLM_API_KEY: ${{ secrets.REVIEWER_LLM_API_KEY }}
           REVIEWER_LLM_BASE_URL: ${{ secrets.REVIEWER_LLM_BASE_URL }}
+          REVIEWER_CONFIG: .github/reviewer.yml
         run: |
+          # 模型由 .github/reviewer.yml 的 model 字段控制（CLI 可覆盖）
           python -m scripts.reviewer.main \
-            --llm-model "gpt-4o" \
             --set-status
-
-      - name: Log completion
-        run: |
-          echo "✅ Reviewer Agent finished for PR #${{ github.event.pull_request.number }}"
