@@ -189,11 +189,38 @@ def run_review(
         post_comment(token, repo, pr_number, comment)
         print(f"[Reviewer] Comment posted to PR #{pr_number}")
 
-    # Step 6: Set review status (optional)
+    # Step 6: Submit review (inline comments for validated critical/high issues)
     if set_status:
         commit_sha = pr_meta.get("head_sha", "")
         if commit_sha:
-            set_review_status(token, repo, pr_number, result.summary["verdict"], commit_sha)
+            from .severity import Severity
+
+            event = "APPROVE" if result.summary["verdict"] == "approve" else "REQUEST_CHANGES"
+            body = (
+                "✅ Reviewer Agent: No blocking issues found."
+                if event == "APPROVE"
+                else "⛔️ Reviewer Agent: Critical or high issues found — changes requested."
+            )
+            inline = []
+            valid_ranges = analyzer.get_valid_line_ranges()
+            for issue in result.issues:
+                if (
+                    issue.severity in (Severity.CRITICAL, Severity.HIGH)
+                    and issue.file
+                    and issue.line
+                ):
+                    ranges = valid_ranges.get(issue.file, [])
+                    if any(start <= issue.line <= end for start, end in ranges):
+                        inline.append({
+                            "path": issue.file,
+                            "line": issue.line,
+                            "side": "RIGHT",
+                            "body": f"[{issue.category}] {issue.title}\n\n{issue.description[:300]}",
+                        })
+            if inline:
+                analyzer.post_review_with_comments(commit_sha, event, body, inline)
+            else:
+                set_review_status(token, repo, pr_number, result.summary["verdict"], commit_sha)
 
     return result
 

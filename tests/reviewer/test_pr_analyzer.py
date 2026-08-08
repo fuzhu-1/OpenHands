@@ -85,3 +85,42 @@ def test_delete_comment_returns_true_on_204(monkeypatch):
 
     a.session = FakeSession()
     assert a.delete_comment(1) is True
+
+
+def test_parse_new_line_ranges():
+    from scripts.reviewer.pr_analyzer import parse_new_line_ranges
+
+    patch = "@@ -10,4 +20,6 @@\n context\n+added\n@@ -50 +60 @@\n-old\n+new\n"
+    assert parse_new_line_ranges(patch) == [(20, 25), (60, 60)]
+
+
+def test_post_review_with_comments_posts_payload(monkeypatch):
+    a = _analyzer()
+    a.api_base = "https://api.github.com"
+    a.repo = "owner/repo"
+    a.pr_number = 42
+    captured = {}
+
+    class Resp:
+        status_code = 200
+        text = ""
+
+        def json(self):
+            return {"html_url": "https://example.com/review"}
+
+    class FakeSession:
+        def post(self, url, headers=None, json=None):
+            captured["url"] = url
+            captured["json"] = json
+            return Resp()
+
+    a.session = FakeSession()
+    ok = a.post_review_with_comments(
+        commit_sha="sha1",
+        event="APPROVE",
+        body="looks good",
+        comments=[{"path": "a.py", "line": 21, "side": "RIGHT", "body": "nit"}],
+    )
+    assert ok is True
+    assert captured["url"].endswith("/pulls/42/reviews")
+    assert captured["json"]["comments"][0]["path"] == "a.py"

@@ -5,9 +5,24 @@ Supports both GitHub Actions context and local testing via environment variables
 """
 
 import os
+import re
 from typing import Any, Optional
 
 import requests
+
+_HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+
+
+def parse_new_line_ranges(patch: str) -> list[tuple[int, int]]:
+    """Return inclusive (start, end) NEW-file line ranges for each hunk."""
+    ranges = []
+    for line in patch.splitlines():
+        m = _HUNK_RE.match(line)
+        if m:
+            start = int(m.group(1))
+            count = int(m.group(2)) if m.group(2) else 1
+            ranges.append((start, start + max(count - 1, 0)))
+    return ranges
 
 
 class PRAnalyzer:
@@ -135,6 +150,38 @@ class PRAnalyzer:
         url = f"{self.api_base}/repos/{self.repo}/issues/comments/{comment_id}"
         resp = self.session.delete(url, headers={"Accept": "application/vnd.github.v3+json"})
         return resp.status_code == 204
+
+    def get_valid_line_ranges(self) -> dict[str, list[tuple[int, int]]]:
+        """Map each changed file to its valid NEW-file line ranges."""
+        ranges: dict[str, list[tuple[int, int]]] = {}
+        for f in self.get_files():
+            ranges[f["filename"]] = parse_new_line_ranges(f.get("patch", ""))
+        return ranges
+
+    def post_review_with_comments(
+        self,
+        commit_sha: str,
+        event: str,
+        body: str,
+        comments: list[dict],
+    ) -> bool:
+        """Submit a formal review with inline comments."""
+        url = f"{self.api_base}/repos/{self.repo}/pulls/{self.pr_number}/reviews"
+        payload = {
+            "commit_id": commit_sha,
+            "event": event,
+            "body": body,
+            "comments": comments,
+        }
+        resp = self.session.post(
+            url,
+            headers={"Accept": "application/vnd.github.v3+json"},
+            json=payload,
+        )
+        if resp.status_code not in (200, 201):
+            print(f"[Reviewer] Failed to post review: {resp.status_code} {resp.text[:200]}")
+            return False
+        return True
 
     def _extract_section(self, body: str, section_name: str) -> str:
         """Extract a section from the PR body by its heading."""
