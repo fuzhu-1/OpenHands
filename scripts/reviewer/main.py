@@ -145,7 +145,12 @@ def run_review(
     try:
         cfg = ReviewerConfig.load()
         model = llm_model or cfg.model
-        engine = ReviewEngine(api_key=llm_api_key, model=model, base_url=llm_base_url)
+        engine = ReviewEngine(
+            api_key=llm_api_key,
+            model=model,
+            base_url=llm_base_url,
+            refine_threshold=cfg.suggestion_score_threshold,
+        )
         file_list = analyzer.get_files()
         total_patch_chars = sum(len(f.get("patch", "")) for f in file_list)
         if file_list and total_patch_chars > cfg.chunk_size_chars:
