@@ -1,0 +1,27 @@
+name: Reviewer Feedback Summary
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"  # 每周一 01:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  feedback:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests
+      - name: Collect feedback for recent PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for PR in $(gh pr list --state merged --limit 20 --json number --jq '.[].number'); do
+            python -m scripts.reviewer.feedback --repo "${{ github.repository }}" --pr "$PR"
+          done
