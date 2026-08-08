@@ -27,6 +27,9 @@ def test_llm_failure_posts_failure_comment_and_returns_none(monkeypatch):
         def get_diff(self):
             return "diff"
 
+        def get_files(self):
+            return []
+
         def get_existing_bot_comments(self):
             return []
 
@@ -71,6 +74,9 @@ def test_old_bot_comments_deleted_before_post(monkeypatch):
 
         def get_diff(self):
             return "diff"
+
+        def get_files(self):
+            return []
 
         def get_existing_bot_comments(self):
             return [{"id": 11}, {"id": 12}]

@@ -84,6 +84,11 @@ class ReviewResult:
     def issues_by_category(self, category: str) -> list[Issue]:
         return [i for i in self.issues if i.category == category]
 
+    def merge(self, other: "ReviewResult") -> None:
+        """Merge another result's issues into this one (for chunk aggregation)."""
+        for issue in other.issues:
+            self.add_issue(issue)
+
 
 def classify_issue_auto(issue_text: str) -> Optional[Severity]:
     """Auto-classify severity based on keywords in the issue description.

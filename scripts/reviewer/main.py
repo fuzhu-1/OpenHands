@@ -138,13 +138,30 @@ def run_review(
     diff_text = analyzer.get_diff()
     print(f"[Reviewer] Diff size: {len(diff_text)} chars")
 
-    # Step 4: LLM review (fail closed)
+    # Step 4: LLM review (chunked, fail closed)
+    from .diff_chunker import chunk_files
+
     print(f"[Reviewer] Running LLM review (model: {llm_model})...")
     try:
         cfg = ReviewerConfig.load()
         model = llm_model or cfg.model
         engine = ReviewEngine(api_key=llm_api_key, model=model, base_url=llm_base_url)
-        result = engine.review(diff_text, pr_meta)
+        file_list = analyzer.get_files()
+        total_patch_chars = sum(len(f.get("patch", "")) for f in file_list)
+        if file_list and total_patch_chars > cfg.chunk_size_chars:
+            chunks = chunk_files(file_list, chunk_size_chars=cfg.chunk_size_chars)
+            print(f"[Reviewer] Diff split into {len(chunks)} chunks")
+            result = ReviewResult(template_compliance={"passed": True, "missing": []})
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=cfg.max_parallel_chunks) as pool:
+                partials = list(pool.map(
+                    lambda chunk: engine.review(chunk["text"], pr_meta),
+                    chunks,
+                ))
+            for partial in partials:
+                result.merge(partial)
+        else:
+            result = engine.review(diff_text, pr_meta)
     except ReviewEngineError as e:
         print(f"[Reviewer] LLM review failed: {e}")
         if post_comment_flag:

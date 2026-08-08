@@ -158,6 +158,18 @@ class TestReviewResult:
         assert len(result.issues_by_category("quality")) == 1
         assert len(result.issues_by_category("performance")) == 0
 
+    def test_merge_accumulates_issues_and_verdict(self):
+        from scripts.reviewer.severity import Severity as S
+
+        a = ReviewResult(template_compliance={"passed": True, "missing": []})
+        b = ReviewResult(template_compliance={"passed": True, "missing": []})
+        b.add_issue(Issue(severity=S.HIGH, file="x.py", line=1, category="quality",
+                          title="H", description=""))
+        a.merge(b)
+        assert a.summary["total"] == 1
+        assert a.summary["high"] == 1
+        assert a.summary["verdict"] == "changes_requested"
+
 
 # ──────────────────────────────────────────────
 # Comment Builder Tests
