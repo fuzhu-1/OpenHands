@@ -109,17 +109,32 @@ class PRAnalyzer:
                 line.strip().startswith(("- [x]", "- [X]"))
                 for line in type_section.split("\n")
             )
-            if not has_selection:
-                if "Type" not in missing and "Type" not in present:
-                    pass  # already handled
-                missing.append("Type (no checkbox selected)")
+            if not has_selection and "Type" in present:
                 present.remove("Type")
+                missing.append("Type (no checkbox selected)")
 
         return {
             "passed": len(missing) == 0,
             "missing": missing,
             "present": present,
         }
+
+    def get_existing_bot_comments(self, marker: str = "Reviewer Agent Report") -> list[dict]:
+        """Return prior bot review comments so they can be replaced (dedup)."""
+        url = f"{self.api_base}/repos/{self.repo}/issues/{self.pr_number}/comments?per_page=100"
+        resp = self.session.get(url, headers={"Accept": "application/vnd.github.v3+json"})
+        resp.raise_for_status()
+        return [
+            c for c in resp.json()
+            if c["user"]["login"] in ("github-actions[bot]", "openhands-bot")
+            and marker in c["body"]
+        ]
+
+    def delete_comment(self, comment_id: int) -> bool:
+        """Delete an old bot comment. Returns True on 204 No Content."""
+        url = f"{self.api_base}/repos/{self.repo}/issues/comments/{comment_id}"
+        resp = self.session.delete(url, headers={"Accept": "application/vnd.github.v3+json"})
+        return resp.status_code == 204
 
     def _extract_section(self, body: str, section_name: str) -> str:
         """Extract a section from the PR body by its heading."""
