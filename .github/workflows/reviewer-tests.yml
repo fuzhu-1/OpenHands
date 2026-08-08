@@ -1,0 +1,31 @@
+name: Reviewer Agent Tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/reviewer/**'
+      - 'tests/reviewer/**'
+      - '.github/workflows/reviewer-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/reviewer/**'
+      - 'tests/reviewer/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test-reviewer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai==2.33.0 requests==2.33.1 pyyaml==6.0.3 pytest==9.0.3
+      - name: Run reviewer tests
+        run: pytest tests/reviewer -v
