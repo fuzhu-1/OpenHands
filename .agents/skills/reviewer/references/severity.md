@@ -13,6 +13,9 @@ Defines how the Reviewer Agent classifies issues found during code review.
 
 ## Classification Rules
 
+> 阈值以 `.github/reviewer.yml` 与 `scripts/reviewer/review_engine.py` 的
+> `REVIEW_SYSTEM_PROMPT` 为唯一事实来源；本文档描述分类语义。
+
 ### Critical
 
 Any of the following is automatically CRITICAL:

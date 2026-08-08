@@ -63,3 +63,4 @@ UI component → TanStack Query hook → API client → API endpoint
 - Pin external third-party actions to a full 40-character commit SHA
 - The trailing comment should include the version tag (e.g., `# v1.2.3`)
 - GitHub-authored (`actions/*`) and first-party (`OpenHands/*`) actions are exempt
+- 以上规则以仓库根目录 `AGENTS.md` 为准

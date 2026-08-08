@@ -125,7 +125,8 @@ Post the review as a single PR comment in the following structure:
 
 ## Cost Optimization
 
-- Small PRs (< 200 lines changed): full review, all dimensions
-- Large PRs (> 200 lines): sample — review only newly added files and key
-  changed sections. Note in the comment that coverage was partial due to size.
+- Small PRs (< `chunk_size_chars` from `.github/reviewer.yml`): full review, all dimensions
+- Large PRs: diffs are chunked (see `chunk_size_chars`) and reviewed in parallel, then
+  aggregated; each chunk notes truncation if an individual file exceeds the limit
 - Template compliance check runs first and cheaply; if it fails, skip code review.
+- Deterministic secret scan (Gitleaks) runs before the LLM review
