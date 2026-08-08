@@ -29,3 +29,7 @@ def test_workflow_has_label_gate():
 
 def test_workflow_does_not_trigger_on_unlabeled():
     assert "unlabeled" not in _events(_load())["pull_request_target"]["types"]
+
+
+def test_workflow_has_secrets_scan_job():
+    assert "secrets-scan" in _load()["jobs"]
