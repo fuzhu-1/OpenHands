@@ -1,0 +1,7 @@
+# Reviewer Agent 配置：所有阈值与开关的单一事实来源
+model: deepseek-v4-flash
+chunk_size_chars: 12000
+max_parallel_chunks: 4
+suggestion_score_threshold: 5
+template_fields: [Why, Summary, How to Test, Type]
+enabled_dimensions: [security, quality, performance, bilingual]
