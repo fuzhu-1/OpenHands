@@ -23,7 +23,8 @@ from typing import Optional
 import requests
 
 from .pr_analyzer import PRAnalyzer
-from .review_engine import ReviewEngine
+from .config import ReviewerConfig
+from .review_engine import ReviewEngine, ReviewEngineError
 from .comment_builder import build_comment
 from .severity import ReviewResult
 
@@ -87,7 +88,7 @@ def run_review(
     repo: str,
     pr_number: int,
     llm_api_key: str,
-    llm_model: str = "gpt-4o",
+    llm_model: Optional[str] = None,
     llm_base_url: Optional[str] = None,
     post_comment_flag: bool = True,
     set_status: bool = False,
@@ -122,8 +123,12 @@ def run_review(
             ))
 
         if post_comment_flag:
+            for old in analyzer.get_existing_bot_comments():
+                analyzer.delete_comment(old["id"])
             comment = build_comment(result)
             post_comment(token, repo, pr_number, comment)
+        if set_status and pr_meta.get("head_sha"):
+            set_review_status(token, repo, pr_number, result.summary["verdict"], pr_meta["head_sha"])
         return result
 
     print("[Reviewer] Template compliance PASSED")
@@ -133,16 +138,31 @@ def run_review(
     diff_text = analyzer.get_diff()
     print(f"[Reviewer] Diff size: {len(diff_text)} chars")
 
-    # Step 4: LLM review
+    # Step 4: LLM review (fail closed)
     print(f"[Reviewer] Running LLM review (model: {llm_model})...")
-    engine = ReviewEngine(api_key=llm_api_key, model=llm_model, base_url=llm_base_url)
-    result = engine.review(diff_text, pr_meta)
+    try:
+        cfg = ReviewerConfig.load()
+        model = llm_model or cfg.model
+        engine = ReviewEngine(api_key=llm_api_key, model=model, base_url=llm_base_url)
+        result = engine.review(diff_text, pr_meta)
+    except ReviewEngineError as e:
+        print(f"[Reviewer] LLM review failed: {e}")
+        if post_comment_flag:
+            failure_comment = (
+                "## ⚠️ Reviewer Agent\n\n"
+                "Automated review could not be completed (LLM call failed). "
+                "No approval status was set. Please re-trigger after resolving the issue."
+            )
+            post_comment(token, repo, pr_number, failure_comment)
+        return None
 
     print(f"[Reviewer] Review complete — {result.summary['total']} issues found, "
           f"verdict: {result.summary['verdict']}")
 
-    # Step 5: Post comment
+    # Step 5: Post comment (replace previous bot comments)
     if post_comment_flag:
+        for old in analyzer.get_existing_bot_comments():
+            analyzer.delete_comment(old["id"])
         comment = build_comment(result)
         post_comment(token, repo, pr_number, comment)
         print(f"[Reviewer] Comment posted to PR #{pr_number}")
@@ -162,7 +182,7 @@ def main() -> None:
     parser.add_argument("--repo", help="Repository (owner/repo)")
     parser.add_argument("--token", help="GitHub token")
     parser.add_argument("--llm-api-key", help="LLM API key")
-    parser.add_argument("--llm-model", default="gpt-4o", help="LLM model name")
+    parser.add_argument("--llm-model", default=None, help="LLM model name (defaults to .github/reviewer.yml)")
     parser.add_argument("--llm-base-url", help="LLM API base URL (for proxies)")
     parser.add_argument("--set-status", action="store_true", help="Set PR review status")
     parser.add_argument("--dry-run", action="store_true", help="Print comment without posting")
@@ -204,7 +224,7 @@ def main() -> None:
         print(comment)
         return
 
-    run_review(
+    outcome = run_review(
         token=token,
         repo=repo,
         pr_number=pr_number,
@@ -214,6 +234,8 @@ def main() -> None:
         post_comment_flag=True,
         set_status=args.set_status,
     )
+    if outcome is None:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
