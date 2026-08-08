@@ -100,10 +100,3 @@ def build_comment(result: ReviewResult) -> str:
     lines.append("*Powered by the Reviewer Agent*")
 
     return "\n".join(lines)
-
-
-def build_request_review_comment(verdict: str, reason: str = "") -> str:
-    """Build a concise comment when review requires changes but we want to be brief."""
-    if verdict == "approve":
-        return "## ✅ Reviewer Agent\n\nThe changes look good — no blocking issues found."
-    return f"## ⚠️ Reviewer Agent\n\nReview requested changes.\n\n{reason}"

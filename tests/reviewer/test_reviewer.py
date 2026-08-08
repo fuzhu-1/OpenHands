@@ -4,30 +4,12 @@ from scripts.reviewer.severity import (
     Severity,
     Issue,
     ReviewResult,
-    classify_issue_auto,
 )
 from scripts.reviewer.comment_builder import build_comment
 
 # ──────────────────────────────────────────────
 # Severity Tests
 # ──────────────────────────────────────────────
-
-
-class TestSeverity:
-    def test_classify_hardcoded_secret(self):
-        assert classify_issue_auto("hardcoded API key found") == Severity.CRITICAL
-
-    def test_classify_sql_injection(self):
-        assert classify_issue_auto("SQL injection risk in query") == Severity.CRITICAL
-
-    def test_classify_n_plus_one(self):
-        assert classify_issue_auto("N+1 query pattern detected") == Severity.HIGH
-
-    def test_classify_unused_import(self):
-        assert classify_issue_auto("unused import 'os'") == Severity.HIGH
-
-    def test_classify_unknown_returns_none(self):
-        assert classify_issue_auto("minor style suggestion") is None
 
 
 # ──────────────────────────────────────────────

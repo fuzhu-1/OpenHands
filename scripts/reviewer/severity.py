@@ -88,34 +88,3 @@ class ReviewResult:
         """Merge another result's issues into this one (for chunk aggregation)."""
         for issue in other.issues:
             self.add_issue(issue)
-
-
-def classify_issue_auto(issue_text: str) -> Optional[Severity]:
-    """Auto-classify severity based on keywords in the issue description.
-
-    This is a lightweight heuristic used when the LLM doesn't provide a
-    severity rating. Returns None when uncertain (LLM judgement preferred).
-    """
-    text_lower = issue_text.lower()
-
-    critical_patterns = [
-        "hardcoded secret", "hardcoded key", "hardcoded password",
-        "hardcoded token", "api key", "sql injection", "xss",
-        "command injection", "path traversal", "auth bypass",
-        "authentication bypass", "cryptographic key", "data leak",
-        "data loss", "csrf", "race condition",
-    ]
-    for pattern in critical_patterns:
-        if pattern in text_lower:
-            return Severity.CRITICAL
-
-    high_patterns = [
-        "n+1", "missing pagination", "no error handling",
-        "unbounded query", "no type hint", "mutation",
-        "dead code", "unused import", "no test",
-    ]
-    for pattern in high_patterns:
-        if pattern in text_lower:
-            return Severity.HIGH
-
-    return None
