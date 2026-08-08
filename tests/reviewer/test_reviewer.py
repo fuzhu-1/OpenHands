@@ -225,3 +225,11 @@ class TestCommentBuilder:
         ))
         comment = build_comment(result)
         assert "📝 Bilingual Check" in comment
+
+    def test_sanitize_markdown_removes_links(self):
+        from scripts.reviewer.comment_builder import sanitize_markdown
+
+        text = "see [docs](https://evil.example/x) and https://evil.example/y"
+        cleaned = sanitize_markdown(text)
+        assert "https://evil.example" not in cleaned
+        assert "docs" in cleaned

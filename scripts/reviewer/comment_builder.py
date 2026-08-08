@@ -2,7 +2,19 @@
 Comment Builder — formats review results into a markdown PR comment.
 """
 
+import re
+
 from .severity import ReviewResult, Severity
+
+_MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
+_RAW_URL_RE = re.compile(r"https?://[^\s)\]]+")
+
+
+def sanitize_markdown(text: str, max_chars: int = 500) -> str:
+    """Strip links from LLM-generated text before it is posted to GitHub."""
+    text = _MARKDOWN_LINK_RE.sub(r"\1", text or "")
+    text = _RAW_URL_RE.sub("[link removed]", text)
+    return text[:max_chars]
 
 
 def build_comment(result: ReviewResult) -> str:
