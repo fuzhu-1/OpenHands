@@ -33,3 +33,8 @@ def test_workflow_does_not_trigger_on_unlabeled():
 
 def test_workflow_has_secrets_scan_job():
     assert "secrets-scan" in _load()["jobs"]
+
+
+def test_secrets_scan_checks_out_pr_head():
+    raw = WORKFLOW.read_text(encoding="utf-8")
+    assert "head.sha" in raw

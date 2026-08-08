@@ -65,6 +65,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # 扫描目标是 PR 的代码，不是 base 分支（pull_request_target 默认检 base）
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Resolve Gitleaks version
         id: gitleaks-version
         run: |

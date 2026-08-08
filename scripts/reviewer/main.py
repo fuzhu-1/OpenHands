@@ -92,7 +92,7 @@ def run_review(
     llm_base_url: Optional[str] = None,
     post_comment_flag: bool = True,
     set_status: bool = False,
-) -> ReviewResult:
+) -> Optional[ReviewResult]:
     """Run the full review pipeline."""
     # Step 1: Analyze PR
     print(f"[Reviewer] Analyzing PR #{pr_number} in {repo}...")
@@ -170,6 +170,8 @@ def run_review(
     except ReviewEngineError as e:
         print(f"[Reviewer] LLM review failed: {e}")
         if post_comment_flag:
+            for old in analyzer.get_existing_bot_comments():
+                analyzer.delete_comment(old["id"])
             failure_comment = (
                 "## ⚠️ Reviewer Agent\n\n"
                 "Automated review could not be completed (LLM call failed). "
@@ -267,8 +269,18 @@ def main() -> None:
         analyzer = PRAnalyzer(token=token, repo=repo, pr_number=pr_number)
         pr_meta = analyzer.get_pr_metadata()
         diff_text = analyzer.get_diff()
-        engine = ReviewEngine(api_key=llm_api_key, model=args.llm_model, base_url=llm_base_url)
-        result = engine.review(diff_text, pr_meta)
+        cfg = ReviewerConfig.load()
+        engine = ReviewEngine(
+            api_key=llm_api_key,
+            model=args.llm_model or cfg.model,
+            base_url=llm_base_url,
+            refine_threshold=cfg.suggestion_score_threshold,
+        )
+        try:
+            result = engine.review(diff_text, pr_meta)
+        except ReviewEngineError as e:
+            print(f"[Reviewer] LLM review failed: {e}")
+            sys.exit(1)
         comment = build_comment(result)
         print(comment)
         return
