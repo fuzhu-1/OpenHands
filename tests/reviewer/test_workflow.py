@@ -40,3 +40,5 @@ def test_workflow_has_secrets_scan_job():
 def test_secrets_scan_checks_out_pr_head():
     raw = WORKFLOW.read_text(encoding='utf-8')
     assert 'head.sha' in raw
+    assert 'base.sha' in raw
+    assert 'log-opts' in raw

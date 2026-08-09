@@ -154,10 +154,10 @@ def run_review(
     # Step 4: LLM review (chunked, fail closed)
     from .diff_chunker import chunk_files
 
-    print(f'[Reviewer] Running LLM review (model: {llm_model})...')
+    cfg = ReviewerConfig.load()
+    model = llm_model or cfg.model
+    print(f'[Reviewer] Running LLM review (model: {model})...')
     try:
-        cfg = ReviewerConfig.load()
-        model = llm_model or cfg.model
         engine = ReviewEngine(
             api_key=llm_api_key,
             model=model,
