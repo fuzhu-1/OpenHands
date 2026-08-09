@@ -59,6 +59,7 @@ def test_llm_failure_posts_failure_comment_and_returns_none(monkeypatch):
     assert result is None
     assert len(posted) == 1
     assert 'could not be completed' in posted[0][3]
+    assert 'Reviewer Agent Report' in posted[0][3]
 
 
 def test_old_bot_comments_deleted_before_post(monkeypatch):

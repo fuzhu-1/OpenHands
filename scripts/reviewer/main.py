@@ -189,7 +189,7 @@ def run_review(
             for old in analyzer.get_existing_bot_comments():
                 analyzer.delete_comment(old['id'])
             failure_comment = (
-                '## ⚠️ Reviewer Agent\n\n'
+                '## ⚠️ Reviewer Agent Report\n\n'
                 'Automated review could not be completed (LLM call failed). '
                 'No approval status was set. Please re-trigger after resolving the issue.'
             )
