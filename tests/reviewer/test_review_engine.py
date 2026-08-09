@@ -89,3 +89,33 @@ def test_refine_keeps_all_on_failure():
     issues = [Issue(Severity.LOW, 'a.py', 1, 'quality', 'x', 'x')]
     kept = engine.refine(issues, 'diff', threshold=5)
     assert len(kept) == 1
+
+def test_review_retries_then_succeeds(monkeypatch):
+    monkeypatch.setattr('scripts.reviewer.review_engine.time.sleep', lambda s: None)
+    engine = ReviewEngine(api_key='test')
+    client = MagicMock()
+    empty_msg = MagicMock()
+    empty_msg.content = None
+    ok_msg = MagicMock()
+    ok_msg.content = '{"issues": []}'
+    client.chat.completions.create.side_effect = [
+        MagicMock(choices=[MagicMock(message=empty_msg)]),
+        MagicMock(choices=[MagicMock(message=ok_msg)]),
+    ]
+    engine.client = client
+    result = engine.review('diff', {'title': 't'}, max_retries=2)
+    assert result.summary['verdict'] == 'approve'
+    assert client.chat.completions.create.call_count == 2
+
+
+def test_review_raises_after_retries_exhausted(monkeypatch):
+    monkeypatch.setattr('scripts.reviewer.review_engine.time.sleep', lambda s: None)
+    engine = ReviewEngine(api_key='test')
+    client = MagicMock()
+    empty_msg = MagicMock()
+    empty_msg.content = None
+    client.chat.completions.create.return_value = MagicMock(choices=[MagicMock(message=empty_msg)])
+    engine.client = client
+    with pytest.raises(ReviewEngineError):
+        engine.review('diff', {'title': 't'}, max_retries=1)
+    assert client.chat.completions.create.call_count == 2
