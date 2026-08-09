@@ -90,6 +90,7 @@ def test_refine_keeps_all_on_failure():
     kept = engine.refine(issues, 'diff', threshold=5)
     assert len(kept) == 1
 
+
 def test_review_retries_then_succeeds(monkeypatch):
     monkeypatch.setattr('scripts.reviewer.review_engine.time.sleep', lambda s: None)
     engine = ReviewEngine(api_key='test')
@@ -114,7 +115,9 @@ def test_review_raises_after_retries_exhausted(monkeypatch):
     client = MagicMock()
     empty_msg = MagicMock()
     empty_msg.content = None
-    client.chat.completions.create.return_value = MagicMock(choices=[MagicMock(message=empty_msg)])
+    client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=empty_msg)]
+    )
     engine.client = client
     with pytest.raises(ReviewEngineError):
         engine.review('diff', {'title': 't'}, max_retries=1)
